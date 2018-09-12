@@ -117,7 +117,7 @@ impl<'a> SolveCtx<'a> {
         unifier: Unifier,
     ) -> Solutions<InferVar> {
         if tail.len() == 0 {
-            return vec![HashMap::new()];
+            return vec![unifier.unifier];
         }
         let mut answers = Vec::new();
         let (first, rest) = (&tail[0], &tail[1..]);
