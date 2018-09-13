@@ -84,15 +84,21 @@ type Solutions<V> = Vec<HashMap<V, Term<V>>>;
 struct SolveCtx<'a> {
     rules: &'a [Rule<Var>],
     var_source: VarSource,
+    query_stack: Vec<Predicate<InferVar>>,
 }
 
 impl<'a> SolveCtx<'a> {
     pub fn solve_goal(&mut self, goal: &Predicate<InferVar>) -> Solutions<InferVar> {
+        if self.query_stack.iter().any(|p| p.alpha_equivalent(goal)) {
+            return Vec::new();
+        }
+        self.query_stack.push(goal.clone());
         let mut answers = Vec::new();
         for rule in self.rules {
             let rule = self.instantiate_rule(rule);
             answers.extend(self.goal_with_rule(&rule, &goal));
         }
+        self.query_stack.pop();
         answers
     }
 
@@ -193,6 +199,7 @@ impl<'a> Solver<'a> {
         let mut ctx = SolveCtx {
             rules: self.rules,
             var_source: Default::default(),
+            query_stack: Vec::new(),
         };
         let inst_goal = instantiate_predicate(&mut ctx, goal, &mut Default::default());
         let mut solutions = Vec::new();
