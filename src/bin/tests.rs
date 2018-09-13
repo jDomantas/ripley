@@ -21,7 +21,15 @@ fn main() {
         check(&solver, "? path(a, X)", "X = a; X = b");
         check(&solver, "? path(b, X)", "X = a; X = b");
         check(&solver, "? path(X, X)", "X = a; X = b");
+        // currently outputs some answers multiple times
         check(&solver, "? path(X, Y)", "X = a, Y = a; X = a, Y = a; X = b, Y = a; X = b, Y = b");
+    });
+    with_rules(r#"
+        edge(a, b).
+        edge(A, B) :- edge(B, A).
+        path(A, A) :- edge(A, B), edge(B, A).
+    "#, |solver| {
+        check(&solver, "? path(X, X)", "X = a; X = b");
     });
 }
 
@@ -54,7 +62,7 @@ fn check(solver: &Solver, query: &str, solution: &str) {
             panic!("parse error");
         },
     };
-    let solutions = solver.solve(&query);
+    let solutions = solver.solve(&query, false);
     let answer = format_solutions(&solutions);
     let answer = if answer.len() == 0 { "no" } else { &answer };
     if answer == solution {
@@ -63,6 +71,8 @@ fn check(solver: &Solver, query: &str, solution: &str) {
         println!("Test failed: {}", query);
         println!("   Expected: {}", solution);
         println!("   Got:      {}", answer);
+        println!("Solution trace:");
+        solver.solve(&query, true);
     }
     println!();
 }

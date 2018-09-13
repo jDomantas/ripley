@@ -20,7 +20,7 @@ fn main() -> io::Result<()> {
             Input::Rule(rule) => rules.push(rule),
             Input::Query(predicate) => {
                 let solver = Solver::new(&rules);
-                let solutions = solver.solve(&predicate);
+                let solutions = solver.solve(&predicate, false);
                 if solutions.len() == 0 {
                     println!("no");
                 } else {

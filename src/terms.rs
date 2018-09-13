@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use symbol::Symbol;
@@ -51,35 +50,7 @@ impl<V: Eq + Hash + Copy> Predicate<V> {
         if self.name != other.name || self.args.len() != other.args.len() {
             return false;
         }
-        let mut forward = HashMap::new();
-        let mut backward = HashMap::new();
-        for (a, b) in self.args.iter().zip(other.args.iter()) {
-            match (*a, *b) {
-                (Term::Atom(a), Term::Atom(b)) => {
-                    if a != b {
-                        return false;
-                    }
-                }
-                (Term::Var(a), Term::Var(b)) => {
-                    if let Some(&known) = forward.get(&a) {
-                        if known != b {
-                            return false;
-                        }
-                    } else {
-                        forward.insert(a, b);
-                    }
-                    if let Some(&known) = backward.get(&b) {
-                        if known != a {
-                            return false;
-                        }
-                    } else {
-                        backward.insert(b, a);
-                    }
-                }
-                _ => return false,
-            }
-        }
-        true
+        self.args.iter().zip(other.args.iter()).all(|(a, b)| a == b)
     }
 }
 
