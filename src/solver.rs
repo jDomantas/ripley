@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::hash::Hash;
-use terms::{Atom, Predicate, Rule, Term, Var};
+use terms::{Predicate, Rule, Term, Var};
 
 #[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
 struct InferVar(u32);

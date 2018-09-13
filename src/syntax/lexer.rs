@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use std::str::Chars;
 use error::CompileError;
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
