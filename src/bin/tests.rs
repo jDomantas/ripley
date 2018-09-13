@@ -20,7 +20,9 @@ fn main() {
     "#, |solver| {
         check(&solver, "? path(a, X)", "X = a; X = b");
         check(&solver, "? path(b, X)", "X = a; X = b");
-    })
+        check(&solver, "? path(X, X)", "X = a; X = b");
+        check(&solver, "? path(X, Y)", "X = a, Y = a; X = a, Y = a; X = b, Y = a; X = b, Y = b");
+    });
 }
 
 fn with_rules(source: &str, f: impl FnOnce(Solver)) {
