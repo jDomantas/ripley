@@ -12,6 +12,15 @@ fn main() {
         check(&solver, "? edge(a, X)", "X = b");
         check(&solver, "? edge(b, X)", "X = a");
     });
+    with_rules(r#"
+        edge(a, b).
+        edge(A, B) :- edge(B, A).
+        path(A, B) :- edge(A, B).
+        path(A, B) :- edge(A, C), path(C, B).
+    "#, |solver| {
+        check(&solver, "? path(a, X)", "X = a; X = b");
+        check(&solver, "? path(b, X)", "X = a; X = b");
+    })
 }
 
 fn with_rules(source: &str, f: impl FnOnce(Solver)) {
@@ -50,12 +59,14 @@ fn check(solver: &Solver, query: &str, solution: &str) {
     } else {
         solution == answer
     };
-    if !is_ok {
+    if is_ok {
+        println!("Test passed: {}", query);
+    } else {
         println!("Test failed: {}", query);
-        println!("Expected:    {}", solution);
-        println!("Got:         {}", answer);
-        println!();
+        println!("   Expected: {}", solution);
+        println!("   Got:      {}", answer);
     }
+    println!();
 }
 
 fn format_solution(solution: &HashMap<ripley::terms::Var, ripley::terms::Term<ripley::terms::Var>>) -> String {

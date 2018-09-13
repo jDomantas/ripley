@@ -87,7 +87,7 @@ struct SolveCtx<'a> {
 }
 
 impl<'a> SolveCtx<'a> {
-    pub fn solve_goal(&mut self, goal: &Predicate<InferVar>) -> Solutions<InferVar> {
+    pub fn solve_goal(&mut self, goal: &Predicate<InferVar>, unifier: &Unifier) -> Solutions<InferVar> {
         if self.query_stack.iter().any(|p| p.alpha_equivalent(goal)) {
             return Vec::new();
         }
@@ -95,7 +95,7 @@ impl<'a> SolveCtx<'a> {
         let mut answers = Vec::new();
         for rule in self.rules {
             let rule = self.instantiate_rule(rule);
-            answers.extend(self.goal_with_rule(&rule, &goal));
+            answers.extend(self.goal_with_rule(&rule, &goal, unifier));
         }
         self.query_stack.pop();
         answers
@@ -105,11 +105,12 @@ impl<'a> SolveCtx<'a> {
         &mut self,
         rule: &Rule<InferVar>,
         goal: &Predicate<InferVar>,
+        unifier: &Unifier,
     ) -> Solutions<InferVar> {
         if rule.head.name != goal.name || rule.head.args.len() != goal.args.len() {
             return Vec::new();
         }
-        let mut unifier = Unifier::default();
+        let mut unifier = unifier.clone();
         if unifier.unify_pred(&rule.head, &goal).is_err() {
             return Vec::new();
         }
@@ -126,7 +127,7 @@ impl<'a> SolveCtx<'a> {
         }
         let mut answers = Vec::new();
         let (first, rest) = (&tail[0], &tail[1..]);
-        for solution in self.solve_goal(first) {
+        for solution in self.solve_goal(first, &unifier) {
             let mut unifier = unifier.clone();
             for (&var, &term) in &solution {
                 if unifier.unify(Term::Var(var), term).is_err() {
@@ -202,7 +203,8 @@ impl<'a> Solver<'a> {
         };
         let inst_goal = instantiate_predicate(&mut ctx, goal, &mut Default::default());
         let mut solutions = Vec::new();
-        for solution in ctx.solve_goal(&inst_goal) {
+        let unifier = Unifier::default();
+        for solution in ctx.solve_goal(&inst_goal, &unifier) {
             let mut back_ref = HashMap::new();
             let mut unifier = Unifier { unifier: solution };
             let mut sol = HashMap::new();
