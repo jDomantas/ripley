@@ -76,6 +76,13 @@ impl Unifier {
             None => Term::Var(var),
         }
     }
+
+    fn normalize_pred(&mut self, pred: &Predicate<InferVar>) -> Predicate<InferVar> {
+        Predicate {
+            name: pred.name,
+            args: pred.args.iter().map(|t| self.normalize(*t)).collect(),
+        }
+    }
 }
 
 type Solutions<V> = Vec<HashMap<V, Term<V>>>;
@@ -87,7 +94,15 @@ struct SolveCtx<'a> {
 }
 
 impl<'a> SolveCtx<'a> {
-    pub fn solve_goal(&mut self, goal: &Predicate<InferVar>, unifier: &Unifier) -> Solutions<InferVar> {
+    pub fn new(rules: &'a [Rule<Var>]) -> SolveCtx<'a> {
+        SolveCtx {
+            rules,
+            var_source: Default::default(),
+            query_stack: Default::default(),
+        }
+    }
+
+    pub fn solve_goal(&mut self, goal: &Predicate<InferVar>) -> Solutions<InferVar> {
         if self.query_stack.iter().any(|p| p.alpha_equivalent(goal)) {
             return Vec::new();
         }
@@ -95,7 +110,7 @@ impl<'a> SolveCtx<'a> {
         let mut answers = Vec::new();
         for rule in self.rules {
             let rule = self.instantiate_rule(rule);
-            answers.extend(self.goal_with_rule(&rule, &goal, unifier));
+            answers.extend(self.goal_with_rule(&rule, &goal));
         }
         self.query_stack.pop();
         answers
@@ -105,12 +120,11 @@ impl<'a> SolveCtx<'a> {
         &mut self,
         rule: &Rule<InferVar>,
         goal: &Predicate<InferVar>,
-        unifier: &Unifier,
     ) -> Solutions<InferVar> {
         if rule.head.name != goal.name || rule.head.args.len() != goal.args.len() {
             return Vec::new();
         }
-        let mut unifier = unifier.clone();
+        let mut unifier = Unifier::default();
         if unifier.unify_pred(&rule.head, &goal).is_err() {
             return Vec::new();
         }
@@ -120,14 +134,14 @@ impl<'a> SolveCtx<'a> {
     fn solve_tail(
         &mut self,
         tail: &[Predicate<InferVar>],
-        unifier: Unifier,
+        mut unifier: Unifier,
     ) -> Solutions<InferVar> {
         if tail.len() == 0 {
             return vec![unifier.unifier];
         }
         let mut answers = Vec::new();
         let (first, rest) = (&tail[0], &tail[1..]);
-        for solution in self.solve_goal(first, &unifier) {
+        for solution in self.solve_goal(&unifier.normalize_pred(first)) {
             let mut unifier = unifier.clone();
             for (&var, &term) in &solution {
                 if unifier.unify(Term::Var(var), term).is_err() {
@@ -196,15 +210,10 @@ impl<'a> Solver<'a> {
     }
 
     pub fn solve(&self, goal: &Predicate<Var>) -> Solutions<Var> {
-        let mut ctx = SolveCtx {
-            rules: self.rules,
-            var_source: Default::default(),
-            query_stack: Vec::new(),
-        };
+        let mut ctx = SolveCtx::new(self.rules);
         let inst_goal = instantiate_predicate(&mut ctx, goal, &mut Default::default());
         let mut solutions = Vec::new();
-        let unifier = Unifier::default();
-        for solution in ctx.solve_goal(&inst_goal, &unifier) {
+        for solution in ctx.solve_goal(&inst_goal) {
             let mut back_ref = HashMap::new();
             let mut unifier = Unifier { unifier: solution };
             let mut sol = HashMap::new();

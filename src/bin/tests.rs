@@ -54,12 +54,8 @@ fn check(solver: &Solver, query: &str, solution: &str) {
     };
     let solutions = solver.solve(&query);
     let answer = format_solutions(&solutions);
-    let is_ok = if solutions.len() == 0 {
-        solution == "false"
-    } else {
-        solution == answer
-    };
-    if is_ok {
+    let answer = if answer.len() == 0 { "no" } else { &answer };
+    if answer == solution {
         println!("Test passed: {}", query);
     } else {
         println!("Test failed: {}", query);
@@ -86,14 +82,15 @@ fn format_solution(solution: &HashMap<ripley::terms::Var, ripley::terms::Term<ri
 }
 
 fn format_solutions(solutions: &[HashMap<ripley::terms::Var, ripley::terms::Term<ripley::terms::Var>>]) -> String {
-    let solutions = solutions
+    let mut solutions = solutions
         .iter()
         .map(format_solution)
         .collect::<Vec<_>>();
+    solutions.sort();
     let mut ans = String::new();
     for sol in &solutions {
         if ans.len() > 0 {
-            ans.push_str(", ");
+            ans.push_str("; ");
         }
         ans.push_str(sol);
     }
