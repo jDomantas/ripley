@@ -29,6 +29,7 @@ fn main() {
         edge(A, B) :- edge(B, A).
         path(A, A) :- edge(A, B), edge(B, A).
     "#, |solver| {
+        check(&solver, "? edge(X, Y)", "X = a, Y = b; X = b, Y = a");
         check(&solver, "? path(X, X)", "X = a; X = b");
     });
 }
