@@ -91,7 +91,7 @@ impl fmt::Display for PredicateKind {
             PredicateKind::Comparison(Comparison::Less) => write!(f, "</2"),
             PredicateKind::Comparison(Comparison::LessEqual) => write!(f, "<=/2"),
             PredicateKind::Comparison(Comparison::Greater) => write!(f, ">/2"),
-            PredicateKind::Comparison(Comparison::GreaterEqual) => write!(f, ">=/2"),
+            PredicateKind::Comparison(Comparison::GreaterEqual) => write!(f, "=</2"),
         }
     }
 }
@@ -140,7 +140,7 @@ impl<V: fmt::Display> fmt::Display for ComparisonPredicate<V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let operator = match self.comparison {
             Comparison::Less => "<",
-            Comparison::LessEqual => "<=",
+            Comparison::LessEqual => "=<",
             Comparison::Greater => ">",
             Comparison::GreaterEqual => ">=",
         };

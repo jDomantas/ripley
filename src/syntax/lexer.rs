@@ -180,9 +180,9 @@ impl<'a> Lexer<'a> {
                         })
                     };
                 }
-                '<' => return Ok(Some(self.one_or_two('=', TokenKind::Less, TokenKind::LessEqual))),
+                '<' => return Ok(Some(self.single_char(TokenKind::Less))),
                 '>' => return Ok(Some(self.one_or_two('=', TokenKind::Greater, TokenKind::GreaterEqual))),
-                '=' => return Ok(Some(self.single_char(TokenKind::Equal))),
+                '=' => return Ok(Some(self.one_or_two('<', TokenKind::Equal, TokenKind::LessEqual))),
                 '0' ... '9' => return Ok(Some(self.eat_number()?)),
                 'a' ... 'z' => return Ok(Some(self.eat_name(TokenKind::Symbol))),
                 'A' ... 'Z' => return Ok(Some(self.eat_name(TokenKind::Var))),
