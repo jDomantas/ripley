@@ -5,6 +5,7 @@ use error::CompileError;
 pub enum TokenKind<'a> {
     Symbol(&'a str),
     Var(&'a str),
+    Number(u64),
     LeftParen,
     RightParen,
     Comma,
@@ -102,6 +103,39 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn eat_number(&mut self) -> Result<Token<'static>, LexError> {
+        let mut value = Some(0u64);
+        let start = self.pos;
+        loop {
+            match self.peek() {
+                Some(c @ '0' ... '9') => {
+                    self.advance();
+                    let digit = c as u64 - '0' as u64;
+                    value = value
+                        .and_then(|x| x.checked_mul(10))
+                        .and_then(|x| x.checked_add(digit));
+                }
+                Some(c) if is_name_char(c) => {
+                    return Err(LexError {
+                        position: self.pos,
+                    });
+                }
+                _ => break,
+            }
+        }
+        if let Some(value) = value {
+            Ok(Token {
+                kind: TokenKind::Number(value),
+                start,
+                end: self.pos,
+            })
+        } else {
+            Err(LexError {
+                position: start,
+            })
+        }
+    }
+
     fn next_token(&mut self) -> Result<Option<Token<'a>>, LexError> {
         loop {
             let ch = if let Some(ch) = self.peek() { ch } else { return Ok(None); };
@@ -127,6 +161,7 @@ impl<'a> Lexer<'a> {
                         })
                     };
                 }
+                '0' ... '9' => return Ok(Some(self.eat_number()?)),
                 'a' ... 'z' => return Ok(Some(self.eat_name(TokenKind::Symbol))),
                 'A' ... 'Z' => return Ok(Some(self.eat_name(TokenKind::Var))),
                 _ => return Err(LexError { position: self.pos }),

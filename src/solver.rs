@@ -48,12 +48,13 @@ impl Unifier {
                 }
                 Ok(())
             }
-            (Term::Var(a), b @ Term::Atom(_)) | (b @ Term::Atom(_), Term::Var(a)) => {
+            (Term::Var(a), b) | (b, Term::Var(a)) => {
                 self.unifier.insert(a, b);
                 Ok(())
             }
+            (Term::Number(a), Term::Number(b)) if a == b => Ok(()),
             (Term::Atom(a), Term::Atom(b)) if a == b => Ok(()),
-            (Term::Atom(_), Term::Atom(_)) => Err(UnifyError),
+            (_, _) => Err(UnifyError),
         }
     }
 
@@ -71,7 +72,7 @@ impl Unifier {
     fn normalize(&mut self, term: InferTerm) -> InferTerm {
         let var = match term {
             Term::Var(var) => var,
-            atom @ Term::Atom(_) => return atom,
+            other => return other,
         };
         match self.unifier.get(&var) {
             Some(&Term::Var(next)) => {
@@ -209,6 +210,7 @@ fn instantiate_term(
     match *term {
         Term::Var(var) => Term::Var(*existing.entry(var).or_insert_with(c.var_source.generator())),
         Term::Atom(atom) => Term::Atom(atom),
+        Term::Number(num) => Term::Number(num),
     }
 }
 
@@ -247,11 +249,15 @@ impl<'a> Solver<'a> {
             let mut sol = HashMap::new();
             for (&original, &instantiated) in goal.args.iter().zip(inst_goal.args.iter()) {
                 let original = match original {
-                    Term::Atom(_) => continue,
                     Term::Var(var) => var,
+                    Term::Number(_) |
+                    Term::Atom(_) => continue,
                 };
                 let term = unifier.normalize(instantiated);
                 match term {
+                    Term::Number(num) => {
+                        sol.insert(original, Term::Number(num));
+                    }
                     Term::Atom(atom) => {
                         sol.insert(original, Term::Atom(atom));
                     }

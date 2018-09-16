@@ -134,6 +134,15 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn check_number(&mut self) -> Option<u64> {
+        if let Some(TokenKind::Number(num)) = self.peek() {
+            self.advance();
+            Some(num)
+        } else {
+            None
+        }
+    }
+
     fn parse_term(&mut self) -> PResult<Term<Var>> {
         if let Some(name) = self.check_symbol() {
             let atom = Atom { symbol: Symbol::new_atom(name) };
@@ -141,6 +150,8 @@ impl<'a> Parser<'a> {
         } else if let Some(name) = self.check_var() {
             let var = self.make_var(name);
             Ok(Term::Var(var))
+        } else if let Some(num) = self.check_number() {
+            Ok(Term::Number(num))
         } else {
             Err(self.error(ParseErrorKind::ExpectedTermOrParen))
         }

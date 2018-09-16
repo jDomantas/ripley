@@ -32,6 +32,13 @@ fn main() {
         check(&solver, "? edge(X, Y)", "X = a, Y = b; X = b, Y = a");
         check(&solver, "? path(X, X)", "X = a; X = b");
     });
+    with_rules(r#"
+        foo(1, 81).
+        foo(4, 12).
+        foo(X, Y) :- foo(Y, X).
+    "#, |solver| {
+        check(&solver, "? foo(X, Y)", "X = 1, Y = 81; X = 12, Y = 4; X = 4, Y = 12; X = 81, Y = 1");
+    });
 }
 
 fn with_rules(source: &str, f: impl FnOnce(Solver)) {

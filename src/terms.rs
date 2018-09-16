@@ -17,6 +17,7 @@ impl fmt::Display for Atom {
 pub enum Term<V> {
     Var(V),
     Atom(Atom),
+    Number(u64),
 }
 
 impl<V: fmt::Display> fmt::Display for Term<V> {
@@ -24,6 +25,7 @@ impl<V: fmt::Display> fmt::Display for Term<V> {
         match self {
             Term::Var(var) => write!(f, "?{}", var),
             Term::Atom(atom) => write!(f, "{}", atom),
+            Term::Number(num) => write!(f, "{}", num),
         }
     }
 }
