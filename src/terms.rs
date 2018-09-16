@@ -22,7 +22,7 @@ pub enum Term<V> {
 impl<V: fmt::Display> fmt::Display for Term<V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Term::Var(var) => write!(f, "?{}", var),
+            Term::Var(var) => write!(f, "{}", var),
             Term::Atom(atom) => write!(f, "{}", atom),
             Term::Number(num) => write!(f, "{}", num),
         }

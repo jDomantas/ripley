@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use terms::{Predicate, Rule, Term, Var, NamedPredicate, EqualityPredicate, ComparisonPredicate};
+use terms::{Predicate, Rule, Term, Var, NamedPredicate, EqualityPredicate, ComparisonPredicate, Comparison};
 
 #[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
 struct InferVar(u32);
@@ -8,7 +8,7 @@ type InferTerm = Term<InferVar>;
 use std::fmt;
 impl fmt::Display for InferVar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "?{}", self.0)
     }
 }
 
@@ -153,13 +153,71 @@ impl<'a> SolveCtx<'a> {
             return Vec::new();
         }
         self.query_stack.push(goal.clone());
-        let mut answers = Vec::new();
-        for rule in self.rules {
-            let rule = self.instantiate_rule(rule);
-            answers.extend(self.goal_with_rule(&rule, &goal));
-        }
+        let answers = match goal {
+            goal @ Predicate::Named(_) => {
+                let mut answers = Vec::new();
+                for rule in self.rules {
+                    let rule = self.instantiate_rule(rule);
+                    answers.extend(self.goal_with_rule(&rule, &goal));
+                }
+                answers
+            }
+            Predicate::Equality(goal) => {
+                self.solve_equality_goal(goal)
+            }
+            Predicate::Comparison(goal) => {
+                self.solve_comparison_goal(goal)
+            }
+        };
         self.query_stack.pop();
         answers
+    }
+
+    fn solve_equality_goal(&mut self, goal: &EqualityPredicate<InferVar>) -> Solutions<InferVar> {
+        let mut unifier = Unifier::default();
+        if unifier.unify(goal.args[0], goal.args[1]).is_ok() {
+            vec![unifier.unifier]
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn solve_comparison_goal(&mut self, goal: &ComparisonPredicate<InferVar>) -> Solutions<InferVar> {
+        let (lhs, rhs, include_equal) = match goal.comparison {
+            Comparison::Less => (goal.args[0], goal.args[1], false),
+            Comparison::LessEqual => (goal.args[0], goal.args[1], true),
+            Comparison::Greater => (goal.args[1], goal.args[0], false),
+            Comparison::GreaterEqual => (goal.args[1], goal.args[0], true),
+        };
+        let cap = match rhs {
+            Term::Atom(_) => return Vec::new(),
+            Term::Number(num) => num,
+            Term::Var(_) => panic!("infinite answers for {}", goal),
+        };
+        match lhs {
+            Term::Atom(_) => Vec::new(),
+            Term::Number(num) => {
+                if num < cap || (num == cap && include_equal) {
+                    vec![HashMap::new()]
+                } else {
+                    Vec::new()
+                }
+            }
+            Term::Var(var) => {
+                let solutions = if include_equal {
+                    0..(cap + 1)
+                } else {
+                    0..cap
+                };
+                solutions
+                    .map(|num| {
+                        let mut sol = HashMap::new();
+                        sol.insert(var, Term::Number(num));
+                        sol
+                    })
+                    .collect()
+            }
+        }
     }
 
     fn goal_with_rule(
