@@ -15,6 +15,7 @@ pub enum TokenKind<'a> {
     Less,
     LessEqual,
     Equal,
+    NotEqual,
     Greater,
     GreaterEqual,
 }
@@ -171,6 +172,21 @@ impl<'a> Lexer<'a> {
                     return if self.check('-') {
                         Ok(Some(Token {
                             kind: TokenKind::ImpliedBy,
+                            start,
+                            end: self.pos,
+                        }))
+                    } else {
+                        Err(LexError {
+                            position: self.pos,
+                        })
+                    };
+                }
+                '\\' => {
+                    let start = self.pos;
+                    self.advance();
+                    return if self.check('=') {
+                        Ok(Some(Token {
+                            kind: TokenKind::NotEqual,
                             start,
                             end: self.pos,
                         }))

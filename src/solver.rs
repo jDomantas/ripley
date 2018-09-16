@@ -99,6 +99,7 @@ impl Unifier {
                         self.normalize(pred.args[0]),
                         self.normalize(pred.args[1]),
                     ],
+                    equal: pred.equal,
                 })
             }
             Predicate::Comparison(pred) => {
@@ -175,10 +176,24 @@ impl<'a> SolveCtx<'a> {
 
     fn solve_equality_goal(&mut self, goal: &EqualityPredicate<InferVar>) -> Solutions<InferVar> {
         let mut unifier = Unifier::default();
-        if unifier.unify(goal.args[0], goal.args[1]).is_ok() {
-            vec![unifier.unifier]
+        if goal.equal {
+            if unifier.unify(goal.args[0], goal.args[1]).is_ok() {
+                vec![unifier.unifier]
+            } else {
+                Vec::new()
+            }
         } else {
-            Vec::new()
+            match (goal.args[0], goal.args[1]) {
+                (Term::Var(a), Term::Var(b)) if a == b => return Vec::new(),
+                (Term::Var(_), _) | (_, Term::Var(_)) => panic!("infinite answers for {}", goal),
+                (a, b) => {
+                    if unifier.unify(a, b).is_ok() {
+                        Vec::new()
+                    } else {
+                        vec![HashMap::new()]
+                    }
+                }
+            }
         }
     }
 
@@ -315,7 +330,7 @@ fn instantiate_predicate(
                 instantiate_term(c, &pred.args[0], existing),
                 instantiate_term(c, &pred.args[1], existing),
             ];
-            Predicate::Equality(EqualityPredicate { args })
+            Predicate::Equality(EqualityPredicate { args, equal: pred.equal })
         }
         Predicate::Comparison(pred) => {
             let args = [

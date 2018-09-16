@@ -198,7 +198,10 @@ impl<'a> Parser<'a> {
         };
         if self.check(TokenKind::Equal) {
             let rhs = self.parse_term()?;
-            Ok(Predicate::Equality(EqualityPredicate { args: [lhs, rhs], }))
+            Ok(Predicate::Equality(EqualityPredicate { args: [lhs, rhs], equal: true }))
+        } else if self.check(TokenKind::NotEqual) {
+            let rhs = self.parse_term()?;
+            Ok(Predicate::Equality(EqualityPredicate { args: [lhs, rhs], equal: false }))
         } else {
             let cmp = match self.peek() {
                 Some(TokenKind::Less) => Comparison::Less,

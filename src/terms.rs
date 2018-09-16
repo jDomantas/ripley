@@ -59,7 +59,7 @@ impl<V> Predicate<V> {
     pub fn kind(&self) -> PredicateKind {
         match self {
             Predicate::Named(pred) => PredicateKind::Named(pred.name, pred.args.len()),
-            Predicate::Equality(_) => PredicateKind::Equality,
+            Predicate::Equality(pred) => PredicateKind::Equality(pred.equal),
             Predicate::Comparison(pred) => PredicateKind::Comparison(pred.comparison),
         }
     }
@@ -79,7 +79,7 @@ impl<V: Eq> Predicate<V> {
 #[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
 pub enum PredicateKind {
     Named(Symbol, usize),
-    Equality,
+    Equality(bool),
     Comparison(Comparison),
 }
 
@@ -87,7 +87,8 @@ impl fmt::Display for PredicateKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             PredicateKind::Named(name, args) => write!(f, "{}/{}", name, args),
-            PredicateKind::Equality => write!(f, "=/2"),
+            PredicateKind::Equality(true) => write!(f, "=/2"),
+            PredicateKind::Equality(false) => write!(f, "\\=/2"),
             PredicateKind::Comparison(Comparison::Less) => write!(f, "</2"),
             PredicateKind::Comparison(Comparison::LessEqual) => write!(f, "<=/2"),
             PredicateKind::Comparison(Comparison::Greater) => write!(f, ">/2"),
@@ -99,6 +100,7 @@ impl fmt::Display for PredicateKind {
 #[derive(Debug, Clone)]
 pub struct EqualityPredicate<V> {
     pub args: [Term<V>; 2],
+    pub equal: bool,
 }
 
 #[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
@@ -132,7 +134,7 @@ impl<V: Eq> NamedPredicate<V> {
 
 impl<V: fmt::Display> fmt::Display for EqualityPredicate<V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} = {}", self.args[0], self.args[1])
+        write!(f, "{} {} {}", self.args[0], if self.equal { "=" } else { "\\=" }, self.args[1])
     }
 }
 
