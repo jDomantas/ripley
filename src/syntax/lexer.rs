@@ -12,6 +12,11 @@ pub enum TokenKind<'a> {
     Dot,
     ImpliedBy,
     Question,
+    Less,
+    LessEqual,
+    Equal,
+    Greater,
+    GreaterEqual,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -76,6 +81,20 @@ impl<'a> Lexer<'a> {
     fn single_char(&mut self, kind: TokenKind<'static>) -> Token<'a> {
         let start = self.pos;
         self.advance();
+        let end = self.pos;
+        Token { kind, start, end }
+    }
+
+    fn one_or_two(&mut self, ch: char, one: TokenKind<'static>, two: TokenKind<'static>) -> Token<'a> {
+        let start = self.pos;
+        self.advance();
+        let kind = match self.peek() {
+            Some(c) if c == ch => {
+                self.advance();
+                two
+            }
+            _ => one,
+        };
         let end = self.pos;
         Token { kind, start, end }
     }
@@ -161,6 +180,9 @@ impl<'a> Lexer<'a> {
                         })
                     };
                 }
+                '<' => return Ok(Some(self.one_or_two('=', TokenKind::Less, TokenKind::LessEqual))),
+                '>' => return Ok(Some(self.one_or_two('=', TokenKind::Greater, TokenKind::GreaterEqual))),
+                '=' => return Ok(Some(self.single_char(TokenKind::Equal))),
                 '0' ... '9' => return Ok(Some(self.eat_number()?)),
                 'a' ... 'z' => return Ok(Some(self.eat_name(TokenKind::Symbol))),
                 'A' ... 'Z' => return Ok(Some(self.eat_name(TokenKind::Var))),

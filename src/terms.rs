@@ -1,5 +1,4 @@
 use std::fmt;
-use std::hash::Hash;
 use symbol::Symbol;
 
 #[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
@@ -42,13 +41,88 @@ impl fmt::Display for Var {
 }
 
 #[derive(Debug, Clone)]
-pub struct Predicate<V> {
+pub enum Predicate<V> {
+    Named(NamedPredicate<V>),
+    Equality(EqualityPredicate<V>),
+    Comparison(ComparisonPredicate<V>),
+}
+
+impl<V> Predicate<V> {
+    pub fn args(&self) -> &[Term<V>] {
+        match self {
+            Predicate::Named(pred) => &pred.args,
+            Predicate::Equality(pred) => &pred.args,
+            Predicate::Comparison(pred) => &pred.args,
+        }
+    }
+
+    pub fn kind(&self) -> PredicateKind {
+        match self {
+            Predicate::Named(pred) => PredicateKind::Named(pred.name, pred.args.len()),
+            Predicate::Equality(_) => PredicateKind::Equality,
+            Predicate::Comparison(pred) => PredicateKind::Comparison(pred.comparison),
+        }
+    }
+}
+
+impl<V: Eq> Predicate<V> {
+    pub fn equivalent(&self, other: &Predicate<V>) -> bool {
+        match (self, other) {
+            (Predicate::Named(a), Predicate::Named(b)) => a.equivalent(b),
+            (Predicate::Equality(a), Predicate::Equality(b)) => a.args == b.args,
+            (Predicate::Comparison(a), Predicate::Comparison(b)) => a.args == b.args && a.comparison == b.comparison,
+            (_, _) => false,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
+pub enum PredicateKind {
+    Named(Symbol, usize),
+    Equality,
+    Comparison(Comparison),
+}
+
+impl fmt::Display for PredicateKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PredicateKind::Named(name, args) => write!(f, "{}/{}", name, args),
+            PredicateKind::Equality => write!(f, "=/2"),
+            PredicateKind::Comparison(Comparison::Less) => write!(f, "</2"),
+            PredicateKind::Comparison(Comparison::LessEqual) => write!(f, "<=/2"),
+            PredicateKind::Comparison(Comparison::Greater) => write!(f, ">/2"),
+            PredicateKind::Comparison(Comparison::GreaterEqual) => write!(f, ">=/2"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EqualityPredicate<V> {
+    pub args: [Term<V>; 2],
+}
+
+#[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
+pub enum Comparison {
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+}
+
+#[derive(Debug, Clone)]
+pub struct ComparisonPredicate<V> {
+    pub args: [Term<V>; 2],
+    pub comparison: Comparison,
+}
+
+#[derive(Debug, Clone)]
+pub struct NamedPredicate<V> {
     pub name: Symbol,
     pub args: Vec<Term<V>>,
 }
 
-impl<V: Eq + Hash + Copy> Predicate<V> {
-    pub fn alpha_equivalent(&self, other: &Predicate<V>) -> bool {
+impl<V: Eq> NamedPredicate<V> {
+    pub fn equivalent(&self, other: &NamedPredicate<V>) -> bool {
         if self.name != other.name || self.args.len() != other.args.len() {
             return false;
         }
@@ -56,7 +130,25 @@ impl<V: Eq + Hash + Copy> Predicate<V> {
     }
 }
 
-impl<V: fmt::Display> fmt::Display for Predicate<V> {
+impl<V: fmt::Display> fmt::Display for EqualityPredicate<V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} = {}", self.args[0], self.args[1])
+    }
+}
+
+impl<V: fmt::Display> fmt::Display for ComparisonPredicate<V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let operator = match self.comparison {
+            Comparison::Less => "<",
+            Comparison::LessEqual => "<=",
+            Comparison::Greater => ">",
+            Comparison::GreaterEqual => ">=",
+        };
+        write!(f, "{} {} {}", self.args[0], operator, self.args[1])
+    }
+}
+
+impl<V: fmt::Display> fmt::Display for NamedPredicate<V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.name)?;
         if self.args.len() > 0 {
@@ -72,6 +164,16 @@ impl<V: fmt::Display> fmt::Display for Predicate<V> {
             write!(f, ")")?;
         }
         Ok(())
+    }
+}
+
+impl<V: fmt::Display> fmt::Display for Predicate<V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Predicate::Named(p) => write!(f, "{}", p),
+            Predicate::Equality(p) => write!(f, "{}", p),
+            Predicate::Comparison(p) => write!(f, "{}", p),
+        }
     }
 }
 

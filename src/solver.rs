@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use terms::{Predicate, Rule, Term, Var};
+use terms::{Predicate, Rule, Term, Var, NamedPredicate, EqualityPredicate, ComparisonPredicate};
 
 #[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
 struct InferVar(u32);
@@ -59,12 +59,12 @@ impl Unifier {
     }
 
     fn unify_pred(&mut self, a: &Predicate<InferVar>, b: &Predicate<InferVar>) -> UnifyResult {
-        if a.name != b.name || a.args.len() != b.args.len() {
+        if a.kind() != b.kind() {
             return Err(UnifyError);
         }
-        a.args
+        a.args()
             .iter()
-            .zip(b.args.iter())
+            .zip(b.args().iter())
             .map(|(a, b)| self.unify(*a, *b))
             .collect()
     }
@@ -86,9 +86,30 @@ impl Unifier {
     }
 
     fn normalize_pred(&mut self, pred: &Predicate<InferVar>) -> Predicate<InferVar> {
-        Predicate {
-            name: pred.name,
-            args: pred.args.iter().map(|t| self.normalize(*t)).collect(),
+        match pred {
+            Predicate::Named(pred) => {
+                Predicate::Named(NamedPredicate {
+                    name: pred.name,
+                    args: pred.args.iter().map(|t| self.normalize(*t)).collect(),
+                })
+            }
+            Predicate::Equality(pred) => {
+                Predicate::Equality(EqualityPredicate {
+                    args: [
+                        self.normalize(pred.args[0]),
+                        self.normalize(pred.args[1]),
+                    ],
+                })
+            }
+            Predicate::Comparison(pred) => {
+                Predicate::Comparison(ComparisonPredicate {
+                    args: [
+                        self.normalize(pred.args[0]),
+                        self.normalize(pred.args[1]),
+                    ],
+                    comparison: pred.comparison,
+                })
+            }
         }
     }
 }
@@ -125,7 +146,7 @@ impl<'a> SolveCtx<'a> {
         self.trace(|| {
             println!("{}", goal);
         });
-        if let Some(pred) = self.query_stack.iter().find(|p| p.alpha_equivalent(goal)) {
+        if let Some(pred) = self.query_stack.iter().find(|p| p.equivalent(goal)) {
             self.trace(|| {
                 println!("  pruning, same as {}", pred);
             });
@@ -146,7 +167,7 @@ impl<'a> SolveCtx<'a> {
         rule: &Rule<InferVar>,
         goal: &Predicate<InferVar>,
     ) -> Solutions<InferVar> {
-        if rule.head.name != goal.name || rule.head.args.len() != goal.args.len() {
+        if rule.head.kind() != goal.kind() {
             return Vec::new();
         }
         self.trace(|| {
@@ -219,14 +240,35 @@ fn instantiate_predicate(
     pred: &Predicate<Var>,
     existing: &mut HashMap<Var, InferVar>,
 ) -> Predicate<InferVar> {
-    let args = pred
-        .args
-        .iter()
-        .map(|t| instantiate_term(c, t, existing))
-        .collect();
-    Predicate {
-        name: pred.name,
-        args,
+    match pred {
+        Predicate::Named(pred) => {
+            let args = pred
+                .args
+                .iter()
+                .map(|t| instantiate_term(c, t, existing))
+                .collect();
+            Predicate::Named(NamedPredicate {
+                name: pred.name,
+                args,
+            })
+        }
+        Predicate::Equality(pred) => {
+            let args = [
+                instantiate_term(c, &pred.args[0], existing),
+                instantiate_term(c, &pred.args[1], existing),
+            ];
+            Predicate::Equality(EqualityPredicate { args })
+        }
+        Predicate::Comparison(pred) => {
+            let args = [
+                instantiate_term(c, &pred.args[0], existing),
+                instantiate_term(c, &pred.args[1], existing),
+            ];
+            Predicate::Comparison(ComparisonPredicate {
+                args,
+                comparison: pred.comparison,
+            })
+        }
     }
 }
 
@@ -247,7 +289,7 @@ impl<'a> Solver<'a> {
             let mut back_ref = HashMap::new();
             let mut unifier = Unifier { unifier: solution };
             let mut sol = HashMap::new();
-            for (&original, &instantiated) in goal.args.iter().zip(inst_goal.args.iter()) {
+            for (&original, &instantiated) in goal.args().iter().zip(inst_goal.args().iter()) {
                 let original = match original {
                     Term::Var(var) => var,
                     Term::Number(_) |

@@ -2,18 +2,19 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 use error::CompileError;
 use syntax::lexer::{Token, TokenKind};
-use terms::{Var, Atom, Term, Predicate, Rule, Input};
+use terms::{Var, Atom, Term, Predicate, NamedPredicate, EqualityPredicate, ComparisonPredicate, Comparison, Rule, Input};
 use symbol::Symbol;
 
 #[derive(Debug, Copy, Clone)]
 pub enum ParseErrorKind {
     ExpectedSymbol,
-    ExpectedLeftParen,
+    ExpectedLeftParenOrOp,
     ExpectedTermOrParen,
     ExpectedCommaOrParen,
     ExpectedDotOrImplies,
     ExpectedCommaOrDot,
     ExpectedEnd,
+    ExpectedOp,
 }
 
 impl ParseErrorKind {
@@ -21,12 +22,13 @@ impl ParseErrorKind {
         use self::ParseErrorKind::*;
         match self {
             ExpectedSymbol => "expected name",
-            ExpectedLeftParen => "expected '('",
+            ExpectedLeftParenOrOp => "expected '(' or operator",
             ExpectedTermOrParen => "expected term or ')'",
             ExpectedCommaOrParen => "expected ',' or ')'",
             ExpectedDotOrImplies => "expected '.' or ':-'",
             ExpectedCommaOrDot => "expected ',' or '.'",
             ExpectedEnd => "unexpected token",
+            ExpectedOp => "expected operator"
         }
     }
 }
@@ -165,7 +167,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_terms(&mut self) -> PResult<Vec<Term<Var>>> {
-        self.expect(TokenKind::LeftParen, ParseErrorKind::ExpectedLeftParen)?;
+        self.expect(TokenKind::LeftParen, ParseErrorKind::ExpectedLeftParenOrOp)?;
         let mut terms = Vec::new();
         if self.check(TokenKind::RightParen) {
             return Ok(terms);
@@ -180,16 +182,38 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_predicate(&mut self) -> PResult<Predicate<Var>> {
-        let name = if let Some(name) = self.check_symbol() {
-            Symbol::new_atom(name)
+        let lhs = if let Some(name) = self.check_symbol() {
+            let name = Symbol::new_atom(name);
+            if self.peek() == Some(TokenKind::LeftParen) {
+                let args = self.parse_terms()?;
+                return Ok(Predicate::Named(NamedPredicate {
+                    name,
+                    args,
+                }));
+            } else {
+                Term::Atom(Atom { symbol: name })
+            }
         } else {
-            return Err(self.error(ParseErrorKind::ExpectedSymbol));
+            self.parse_term()?
         };
-        let args = self.parse_terms()?;
-        Ok(Predicate {
-            name,
-            args,
-        })
+        if self.check(TokenKind::Equal) {
+            let rhs = self.parse_term()?;
+            Ok(Predicate::Equality(EqualityPredicate { args: [lhs, rhs], }))
+        } else {
+            let cmp = match self.peek() {
+                Some(TokenKind::Less) => Comparison::Less,
+                Some(TokenKind::LessEqual) => Comparison::LessEqual,
+                Some(TokenKind::Greater) => Comparison::Greater,
+                Some(TokenKind::GreaterEqual) => Comparison::GreaterEqual,
+                _ => return Err(self.error(ParseErrorKind::ExpectedOp)),
+            };
+            self.advance();
+            let rhs = self.parse_term()?;
+            Ok(Predicate::Comparison(ComparisonPredicate {
+                args: [lhs, rhs],
+                comparison: cmp,
+            }))
+        }
     }
 
     fn parse_rule(&mut self) -> PResult<Rule<Var>> {
