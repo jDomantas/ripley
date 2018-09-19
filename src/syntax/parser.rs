@@ -160,10 +160,16 @@ impl<'a> Parser<'a> {
     }
 
     fn make_var(&mut self, name: &'a str) -> Var {
-        *self
-            .vars
-            .entry(name)
-            .or_insert_with(|| Var { symbol: Symbol::new_var(name) })
+        if name == "_" {
+            Var {
+                symbol: Symbol::new_var("_"),
+            }
+        } else {
+            *self
+                .vars
+                .entry(name)
+                .or_insert_with(|| Var { symbol: Symbol::new_var(name) })
+        }
     }
 
     fn parse_terms(&mut self) -> PResult<Vec<Term<Var>>> {

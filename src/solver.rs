@@ -368,6 +368,10 @@ impl<'a> Solver<'a> {
                     Term::Number(_) |
                     Term::Atom(_) => continue,
                 };
+                let var_name = original.to_string();
+                if var_name == "_" {
+                    continue;
+                }
                 let term = unifier.normalize(instantiated);
                 match term {
                     Term::Number(num) => {

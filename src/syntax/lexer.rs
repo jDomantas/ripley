@@ -201,7 +201,7 @@ impl<'a> Lexer<'a> {
                 '=' => return Ok(Some(self.one_or_two('<', TokenKind::Equal, TokenKind::LessEqual))),
                 '0' ... '9' => return Ok(Some(self.eat_number()?)),
                 'a' ... 'z' => return Ok(Some(self.eat_name(TokenKind::Symbol))),
-                'A' ... 'Z' => return Ok(Some(self.eat_name(TokenKind::Var))),
+                'A' ... 'Z' | '_' => return Ok(Some(self.eat_name(TokenKind::Var))),
                 _ => return Err(LexError { position: self.pos }),
             }
         }
